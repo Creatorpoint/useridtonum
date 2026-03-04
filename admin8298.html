@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Admin Panel - Telegram Intelligence</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+
+<style>
+body{
+background:#0f2027;
+color:#fff;
+font-family:sans-serif;
+padding:20px;
+}
+h2{color:#00ffff;}
+.card{
+background:#111;
+padding:15px;
+margin:10px 0;
+border-radius:12px;
+}
+button{
+padding:6px 12px;
+border:none;
+border-radius:6px;
+margin:3px;
+cursor:pointer;
+}
+.approve{background:#00ff99;}
+.reject{background:#ff4444;color:#fff;}
+.remove{background:#ffaa00;}
+.logout{background:#ff00ff;color:#fff;}
+</style>
+</head>
+<body>
+
+<h2>👑 Admin Dashboard</h2>
+<button class="logout" onclick="logout()">Logout</button>
+
+<h3>💳 Pending Payments</h3>
+<div id="payments"></div>
+
+<h3>👥 All Users</h3>
+<div id="users"></div>
+
+<script>
+const firebaseConfig = {
+apiKey: "AIzaSyCJIU56dxgxS2cIh99zSvp_FAn9hrSSl0g",
+authDomain: "prime-earn-49202.firebaseapp.com",
+projectId: "prime-earn-49202",
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+auth.onAuthStateChanged(async user=>{
+if(!user){
+location.href="index.html";
+return;
+}
+
+let doc = await db.collection("users").doc(user.uid).get();
+if(!doc.exists || doc.data().role !== "admin"){
+alert("Access Denied");
+location.href="index.html";
+return;
+}
+
+loadPayments();
+loadUsers();
+});
+
+function logout(){
+auth.signOut();
+location.href="index.html";
+}
+
+async function loadPayments(){
+let container = document.getElementById("payments");
+container.innerHTML="Loading...";
+
+let snapshot = await db.collection("payments")
+.where("status","==","pending")
+.get();
+
+container.innerHTML="";
+snapshot.forEach(doc=>{
+let data = doc.data();
+container.innerHTML += `
+<div class="card">
+Email: ${data.email}<br>
+UTR: ${data.utrNumber}<br>
+Amount: ₹${data.amount}<br>
+<button class="approve" onclick="approvePayment('${doc.id}','${data.userUID}')">Approve</button>
+<button class="reject" onclick="rejectPayment('${doc.id}')">Reject</button>
+</div>
+`;
+});
+}
+
+async function approvePayment(paymentId, uid){
+let expiry = new Date();
+expiry.setDate(expiry.getDate() + 30);
+
+await db.collection("users").doc(uid).update({
+isPro:true,
+expiryDate:expiry
+});
+
+await db.collection("payments").doc(paymentId).update({
+status:"approved"
+});
+
+alert("Pro Activated for 30 Days");
+loadPayments();
+loadUsers();
+}
+
+async function rejectPayment(paymentId){
+await db.collection("payments").doc(paymentId).update({
+status:"rejected"
+});
+alert("Payment Rejected");
+loadPayments();
+}
+
+async function loadUsers(){
+let container = document.getElementById("users");
+container.innerHTML="Loading...";
+
+let snapshot = await db.collection("users").get();
+container.innerHTML="";
+
+snapshot.forEach(doc=>{
+let data = doc.data();
+container.innerHTML += `
+<div class="card">
+Email: ${data.email || "N/A"}<br>
+Pro: ${data.isPro ? "Yes" : "No"}<br>
+<button class="remove" onclick="removePro('${doc.id}')">Remove Pro</button>
+</div>
+`;
+});
+}
+
+async function removePro(uid){
+await db.collection("users").doc(uid).update({
+isPro:false,
+expiryDate:null
+});
+alert("Pro Removed");
+loadUsers();
+}
+</script>
+
+</body>
+</html>
