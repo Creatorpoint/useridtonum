@@ -1,54 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Telegram Intelligence</title>
+<title>Prime - Premium Telegram Search</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-body{
-margin:0;
-font-family:'Poppins',sans-serif;
-background:linear-gradient(135deg,#000428,#004e92);
-color:#fff;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-}
-.container{
-background:rgba(0,0,0,0.7);
-padding:30px;
-width:420px;
-border-radius:20px;
-box-shadow:0 0 40px #00ffff55;
-backdrop-filter:blur(15px);
-}
-h1{text-align:center;color:#00ffff;margin-bottom:20px;}
-input,button{
-width:100%;
-padding:12px;
-margin:8px 0;
-border:none;
-border-radius:10px;
-}
-input{background:#111;color:#fff;}
-button{background:#00ffff;color:#000;font-weight:bold;cursor:pointer;}
-.result{
-background:#111;
-padding:15px;
-border-radius:15px;
-margin-top:10px;
-font-size:14px;
-white-space:pre-wrap;
-}
-.pro{color:#ff00ff;font-weight:bold;}
+body{margin:0;background:#0f0f0f;color:#fff;font-family:Arial;text-align:center}
+.container{max-width:500px;margin:auto;padding:20px}
+input{width:100%;padding:12px;margin:10px 0;border-radius:8px;border:none}
+button{width:100%;padding:12px;background:#00ffcc;border:none;border-radius:8px;font-weight:bold;cursor:pointer}
+.card{background:#1f1f1f;padding:15px;border-radius:10px;margin-top:15px}
+.hidden{display:none}
 </style>
 </head>
 <body>
 
 <div class="container">
 
-<h1>Telegram Intelligence</h1>
+<h1>🔥 Prime Earn Premium</h1>
 
 <div id="authBox">
 <input type="email" id="email" placeholder="Email">
@@ -57,106 +25,131 @@ white-space:pre-wrap;
 <button onclick="login()">Login</button>
 </div>
 
-<div id="dashboard" style="display:none;">
-<p id="planInfo"></p>
+<div id="dashboard" class="hidden">
+
+<h2>🔎 Telegram Search</h2>
 <input type="text" id="userid" placeholder="Enter Telegram User ID">
 <button onclick="searchUser()">Search</button>
+
+<div id="result"></div>
+
+<hr>
+
+<h2>💎 Premium Subscription</h2>
+<p>Scan QR & Enter UTR</p>
+<img src="YOUR_QR_IMAGE_LINK" width="200">
+
+<input type="text" id="utr" placeholder="Enter UTR">
+<button onclick="submitPayment()">Submit Payment</button>
+
 <button onclick="logout()">Logout</button>
-<div class="result" id="resultBox"></div>
+
 </div>
 
 </div>
 
 <script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCJIU56dxgxS2cIh99zSvp_FAn9hrSSl0g",
   authDomain: "prime-earn-49202.firebaseapp.com",
+  databaseURL: "https://prime-earn-49202-default-rtdb.firebaseio.com",
   projectId: "prime-earn-49202",
+  storageBucket: "prime-earn-49202.firebasestorage.app",
+  messagingSenderId: "533446392320",
+  appId: "1:533446392320:web:5cdda6a2fb9a57870eb6e5"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = getDatabase(app);
 
-const DAILY_LIMIT = 3;
+let currentUser=null;
 
-window.signup = async () => {
-  await createUserWithEmailAndPassword(auth,email.value,password.value);
-}
-
-window.login = async () => {
-  await signInWithEmailAndPassword(auth,email.value,password.value);
-}
-
-window.logout = async () => {
-  await signOut(auth);
-}
-
-onAuthStateChanged(auth, async(user)=>{
+onAuthStateChanged(auth,(user)=>{
 if(user){
-authBox.style.display="none";
-dashboard.style.display="block";
+currentUser=user;
+document.getElementById("authBox").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
 
-let userRef = doc(db,"users",user.uid);
-let snap = await getDoc(userRef);
-
-if(!snap.exists()){
-await setDoc(userRef,{
-email:user.email,
-isPro:false,
-searchCount:0,
-role:"user"
-});
-}
-
-loadUser(user);
-
+checkSubscription();
 }else{
-authBox.style.display="block";
-dashboard.style.display="none";
+document.getElementById("authBox").classList.remove("hidden");
+document.getElementById("dashboard").classList.add("hidden");
 }
 });
 
-async function loadUser(user){
-let snap = await getDoc(doc(db,"users",user.uid));
-let data = snap.data();
-
-if(data.isPro){
-planInfo.innerHTML="<span class='pro'>PRO Active (Unlimited)</span>";
-}else{
-planInfo.innerHTML="Free Plan (3 searches daily)";
+window.signup=()=>{
+createUserWithEmailAndPassword(auth,email.value,password.value)
+.then(res=>{
+set(ref(db,"users/"+res.user.uid),{
+email:res.user.email,
+subscription:"none",
+banned:false,
+apiUsage:0
+});
+});
 }
+
+window.login=()=>{
+signInWithEmailAndPassword(auth,email.value,password.value);
 }
 
-window.searchUser = async () => {
+window.logout=()=>{signOut(auth);}
 
-let user = auth.currentUser;
-let userRef = doc(db,"users",user.uid);
-let snap = await getDoc(userRef);
-let data = snap.data();
+function checkSubscription(){
+onValue(ref(db,"users/"+currentUser.uid),(snap)=>{
+let data=snap.val();
+if(data.banned){
+alert("Account Banned");
+logout();
+}
+if(data.subscription!="active"){
+alert("Buy Premium to Use Search");
+}
+});
+}
 
-if(!data.isPro && data.searchCount >= DAILY_LIMIT){
-resultBox.innerHTML="Daily Limit Reached";
+window.searchUser=async()=>{
+let id=document.getElementById("userid").value;
+
+onValue(ref(db,"users/"+currentUser.uid),(snap)=>{
+let data=snap.val();
+if(data.subscription!="active"){
+alert("Premium Required");
 return;
 }
-
-resultBox.innerHTML="Fetching...";
-
-let response = await fetch("https://tg-2-num-api-org.vercel.app/api/search?userid="+userid.value);
-let result = await response.json();
-
-resultBox.innerHTML=JSON.stringify(result,null,2);
-
-if(!data.isPro){
-await updateDoc(userRef,{
-searchCount:data.searchCount+1
 });
+
+let res=await fetch("https://tg-2-num-api-org.vercel.app/api/search?userid="+id);
+let data=await res.json();
+
+update(ref(db,"users/"+currentUser.uid),{
+apiUsage: (Math.random()*10)+1
+});
+
+document.getElementById("result").innerHTML=`
+<div class="card">
+<p>Name: ${data.name||"N/A"}</p>
+<p>Username: ${data.username||"N/A"}</p>
+<p>ID: ${data.id||"N/A"}</p>
+</div>`;
 }
+
+window.submitPayment=()=>{
+push(ref(db,"payments"),{
+uid:currentUser.uid,
+email:currentUser.email,
+utr:utr.value,
+status:"pending",
+amount:99,
+time:Date.now()
+});
+alert("Payment Submitted");
 }
 
 </script>
