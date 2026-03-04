@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Telegram Intelligence</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+body{
+margin:0;
+font-family:'Poppins',sans-serif;
+background:linear-gradient(135deg,#000428,#004e92);
+color:#fff;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+}
+.container{
+background:rgba(0,0,0,0.7);
+padding:30px;
+width:420px;
+border-radius:20px;
+box-shadow:0 0 40px #00ffff55;
+backdrop-filter:blur(15px);
+}
+h1{text-align:center;color:#00ffff;margin-bottom:20px;}
+input,button{
+width:100%;
+padding:12px;
+margin:8px 0;
+border:none;
+border-radius:10px;
+}
+input{background:#111;color:#fff;}
+button{background:#00ffff;color:#000;font-weight:bold;cursor:pointer;}
+.result{
+background:#111;
+padding:15px;
+border-radius:15px;
+margin-top:10px;
+font-size:14px;
+white-space:pre-wrap;
+}
+.pro{color:#ff00ff;font-weight:bold;}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>Telegram Intelligence</h1>
+
+<div id="authBox">
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<button onclick="signup()">Signup</button>
+<button onclick="login()">Login</button>
+</div>
+
+<div id="dashboard" style="display:none;">
+<p id="planInfo"></p>
+<input type="text" id="userid" placeholder="Enter Telegram User ID">
+<button onclick="searchUser()">Search</button>
+<button onclick="logout()">Logout</button>
+<div class="result" id="resultBox"></div>
+</div>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCJIU56dxgxS2cIh99zSvp_FAn9hrSSl0g",
+  authDomain: "prime-earn-49202.firebaseapp.com",
+  projectId: "prime-earn-49202",
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const DAILY_LIMIT = 3;
+
+window.signup = async () => {
+  await createUserWithEmailAndPassword(auth,email.value,password.value);
+}
+
+window.login = async () => {
+  await signInWithEmailAndPassword(auth,email.value,password.value);
+}
+
+window.logout = async () => {
+  await signOut(auth);
+}
+
+onAuthStateChanged(auth, async(user)=>{
+if(user){
+authBox.style.display="none";
+dashboard.style.display="block";
+
+let userRef = doc(db,"users",user.uid);
+let snap = await getDoc(userRef);
+
+if(!snap.exists()){
+await setDoc(userRef,{
+email:user.email,
+isPro:false,
+searchCount:0,
+role:"user"
+});
+}
+
+loadUser(user);
+
+}else{
+authBox.style.display="block";
+dashboard.style.display="none";
+}
+});
+
+async function loadUser(user){
+let snap = await getDoc(doc(db,"users",user.uid));
+let data = snap.data();
+
+if(data.isPro){
+planInfo.innerHTML="<span class='pro'>PRO Active (Unlimited)</span>";
+}else{
+planInfo.innerHTML="Free Plan (3 searches daily)";
+}
+}
+
+window.searchUser = async () => {
+
+let user = auth.currentUser;
+let userRef = doc(db,"users",user.uid);
+let snap = await getDoc(userRef);
+let data = snap.data();
+
+if(!data.isPro && data.searchCount >= DAILY_LIMIT){
+resultBox.innerHTML="Daily Limit Reached";
+return;
+}
+
+resultBox.innerHTML="Fetching...";
+
+let response = await fetch("https://tg-2-num-api-org.vercel.app/api/search?userid="+userid.value);
+let result = await response.json();
+
+resultBox.innerHTML=JSON.stringify(result,null,2);
+
+if(!data.isPro){
+await updateDoc(userRef,{
+searchCount:data.searchCount+1
+});
+}
+}
+
+</script>
+
+</body>
+</html>
